@@ -2,6 +2,7 @@
 @inject HttpClient Http
 @inject NavigationManager NavManager
 @inject IConfiguration Configuration
+@inject IJSRuntime JS
 
 <div class="w-full max-w-md bg-white rounded-xl shadow-md border-t-4 border-blue-500 p-8 text-center">
     <div class="mx-auto w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-6">
@@ -47,7 +48,7 @@
 
     public class ErrorResponse
     {
-        public string Message { get; set; } = string.Empty;
+        public string message { get; set; } = string.Empty;
         public bool isLocked { get; set; }
     }
 
@@ -68,6 +69,7 @@
 
             if (response.IsSuccessStatusCode)
             {
+                await JS.InvokeVoidAsync("localStorage.setItem", "username", form.Username);
                 NavManager.NavigateTo("/");
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
@@ -96,7 +98,7 @@
                 }
                 else
                 {
-                    errorMessage = errorResponse?.Message ?? "Login failed. Please try again.";
+                    errorMessage = errorResponse?.message ?? "Login failed. Please try again.";
 
                 }
             }

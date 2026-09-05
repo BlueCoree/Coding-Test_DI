@@ -1,23 +1,72 @@
 @page "/"
+@inject NavigationManager NavManager
+@inject IJSRuntime JS
 
-<div class="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-    <div class="mb-4">
-        <h1 class="text-3xl font-bold text-gray-800 focus:outline-none">Welcome</h1>
-    </div>
-    
-    <div class="grid grid-cols-2 gap-4 mt-8 text-left">
-        <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
-            <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Status</p>
-            <p class="text-lg font-semibold text-green-600 mt-1">Active</p>
+@if (isChecking)
+{
+    <div class="text-center text-gray-500">Memuat data...</div>
+}
+else
+{
+    <div class="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+        <div class="mb-4">
+            <h2 class="text-3xl font-bold text-gray-800 focus:outline-none">Welcome</h2>
         </div>
-        <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
-            <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Username</p>
-            <p class="text-lg font-semibold text-gray-800 mt-1">User</p>
-        </div>
-    </div>
 
-    <a href="/login" class="inline-block mt-8 px-8 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors">
-        Logout
-    </a>
-</div>
+        <div class="grid grid-cols-2 gap-4 mt-8 text-left">
+            <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Status</p>
+                <p class="text-lg font-semibold text-green-600 mt-1">Active</p>
+            </div>
+            <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Username</p>
+                <p class="text-lg font-semibold text-gray-800 mt-1">@username</p>
+            </div>
+        </div>
+
+        <button @onclick="Logout"
+                class="inline-block mt-8 px-8 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer">
+            Logout
+        </button>
+    </div>
+}
+
+@code
+{
+    private string username = string.Empty;
+    private bool isChecking = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var storedUser = await JS.InvokeAsync<string>("localStorage.getItem", "username");
+
+                if (string.IsNullOrEmpty(storedUser))
+                {
+                    NavManager.NavigateTo("/login");
+                }
+                else
+                {
+                    username = storedUser;
+                    isChecking = false;
+                    StateHasChanged();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Auth check failed: {ex}");
+                NavManager.NavigateTo("/login");
+            }
+        }
+    }
+
+    private async Task Logout()
+    {
+        await JS.InvokeVoidAsync("localStorage.removeItem", "username");
+        NavManager.NavigateTo("/login");
+    }
+}
 
