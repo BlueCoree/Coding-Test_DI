@@ -1,0 +1,110 @@
+@page  "/login"
+@inject HttpClient Http
+@inject NavigationManager NavManager
+@inject IConfiguration Configuration
+
+<div class="w-full max-w-md bg-white rounded-xl shadow-md border-t-4 border-blue-500 p-8 text-center">
+    <div class="mx-auto w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-6">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+        </svg>
+    </div>
+    
+    <h2 class="text-2xl font-bold text-gray-800 mb-2">Login</h2>
+    <p class="text-gray-600 text-sm mb-8 leading-relaxed">
+        Silakan masukkan kredensial Anda untuk mengakses akun Anda.
+    </p>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="mb-4 p-2 bg-red-100 text-red-700 text-sm rounded">
+            @errorMessage
+        </div>
+    }
+
+    <EditForm Model="@form" OnValidSubmit="HandleLogin">
+        <input type="text" @bind="form.Username" placeholder="Username" class="w-full mb-4 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:border-blue-500">
+        <input type="password" @bind="form.Password" placeholder="Password" class="w-full mb-4 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:border-blue-500">
+        <button type="submit" class="w-full py-2.5 bg-blue-500 text-white text-sm font-semibold rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
+            Login
+        </button>
+    </EditForm>
+
+    <a href="/register" class="block mt-4 text-sm text-blue-500 hover:underline">
+        Belum punya akun? Daftar di sini
+    </a>
+</div>
+
+@code {
+    private LoginRequest form = new LoginRequest();
+    private string? errorMessage;
+
+    public class LoginRequest
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class ErrorResponse
+    {
+        public string Message { get; set; } = string.Empty;
+        public bool isLocked { get; set; }
+    }
+
+    public class ValidateErrorResponse
+    {
+        public Dictionary<string, string[]> Errors { get; set; } = new ();
+    }
+
+    private async Task HandleLogin()
+    {
+        errorMessage = null;
+
+        try
+        {
+            string apiBaseUrl = Configuration["ApiBaseUrl"] ?? "http://localhost:5285/";
+            Uri loginUrl = new Uri(new Uri(apiBaseUrl), "api/auth/login");
+            HttpResponseMessage response = await Http.PostAsJsonAsync(loginUrl, form);
+
+            if (response.IsSuccessStatusCode)
+            {
+                NavManager.NavigateTo("/");
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                var validationResponse = await response.Content.ReadFromJsonAsync<ValidateErrorResponse>();
+
+                if (validationResponse?.Errors != null && validationResponse.Errors.Any())
+                {
+                    if (validationResponse.Errors.ContainsKey("Username")) 
+                    {
+                        errorMessage = validationResponse.Errors["Username"].FirstOrDefault();
+                    }
+                    else
+                    {
+                        errorMessage = validationResponse.Errors.First().Value.FirstOrDefault();
+                    }
+                }
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                
+                if (errorResponse != null && errorResponse.isLocked)
+                {
+                    NavManager.NavigateTo("/lock");
+                }
+                else
+                {
+                    errorMessage = errorResponse?.Message ?? "Login failed. Please try again.";
+
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Can't connect to the server. Please try again later.";
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+}
